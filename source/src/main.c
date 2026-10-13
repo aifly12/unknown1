@@ -718,9 +718,6 @@ int run_exploit(int argc, char **argv) {
   set_limit();
   (void)argc;
   (void)argv;
-  if (!verify_target_kernel()) {
-    return 3;
-  }
   if (!init_direct_root_cpu()) {
     pr_error("runtime performance CPU detection failed errno=%d\n", errno);
     return 1;
