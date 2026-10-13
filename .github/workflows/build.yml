@@ -1,0 +1,37 @@
+name: Build preload.so
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      API: "32"
+      PROJECT: "humane-aipin-45.20"
+      TARGET_HEADER: "src/target_45_20.h"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK package
+        run: sdkmanager "ndk;29.0.14206865"
+
+      - name: Set NDK environment
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Build preload.so
+        run: make preload
+
+      - name: Upload preload.so
+        uses: actions/upload-artifact@v4
+        with:
+          name: preload-${{ env.PROJECT }}
+          path: build/${{ env.PROJECT }}/bin/preload.so
+          if-no-files-found: error
