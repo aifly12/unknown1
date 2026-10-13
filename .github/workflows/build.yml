@@ -12,24 +12,34 @@ jobs:
       PROJECT: "humane-aipin-45.20"
       TARGET_HEADER: "src/target_45_20.h"
 
+    defaults:
+      run:
+        working-directory: source
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Android NDK
         run: |
           NDK_URL="https://dl.google.com/android/repository/android-ndk-r29-linux.zip"
-          curl -SL --progress-bar "$NDK_URL" -o ndk.zip
-          unzip -q ndk.zip -d $HOME/ndk
-          rm ndk.zip
-          
-          NDK_HOME=$(find $HOME/ndk -maxdepth 2 -name "source.properties" | xargs dirname)
-          echo "NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
-          echo "NDK_ROOT=$NDK_HOME" >> $GITHUB_ENV
+          mkdir -p "$HOME/ndk"
+          curl -fsSL "$NDK_URL" -o "$RUNNER_TEMP/ndk.zip"
+          unzip -q "$RUNNER_TEMP/ndk.zip" -d "$HOME/ndk"
+          rm "$RUNNER_TEMP/ndk.zip"
+
+          NDK_HOME="$(find "$HOME/ndk" -maxdepth 3 -name source.properties -print -quit | xargs dirname)"
+          echo "NDK_ROOT=$NDK_HOME" >> "$GITHUB_ENV"
+
+      - name: Check target header
+        run: test -f "$TARGET_HEADER"
 
       - name: Build preload.so
-        run: make source/preload
+        run: make preload
 
-      - name: Upload preload.so
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: preload-${{ env.PROJECT }}
-          path: build/${{ env.PROJECT }}/bin/preload.so
+          name: payload-so-output
+          path: source/build/${{ env.PROJECT }}/bin/preload.so
           if-no-files-found: error
