@@ -13,18 +13,16 @@ jobs:
       TARGET_HEADER: "src/target_45_20.h"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Android NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK package
-        run: sdkmanager "ndk;29.0.14206865"
-
-      - name: Set NDK environment
+      - name: Setup Android NDK
         run: |
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/29.0.14206865" >> "$GITHUB_ENV"
+          NDK_URL="https://dl.google.com/android/repository/android-ndk-r29-linux.zip"
+          curl -SL --progress-bar "$NDK_URL" -o ndk.zip
+          unzip -q ndk.zip -d $HOME/ndk
+          rm ndk.zip
+          
+          NDK_HOME=$(find $HOME/ndk -maxdepth 2 -name "source.properties" | xargs dirname)
+          echo "NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
+          echo "NDK_ROOT=$NDK_HOME" >> $GITHUB_ENV
 
       - name: Build preload.so
         run: make preload
