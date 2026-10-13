@@ -25,7 +25,7 @@ jobs:
           echo "NDK_ROOT=$NDK_HOME" >> $GITHUB_ENV
 
       - name: Build preload.so
-        run: make preload
+        run: make source/preload
 
       - name: Upload preload.so
         uses: actions/upload-artifact@v4
