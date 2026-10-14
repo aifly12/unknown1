@@ -615,23 +615,6 @@ static void init_ctx(struct mm_ctx *ctx, size_t count) {
                (unsigned long long)cpu_partial, MM_PREPARE_SLABS_MAX);
     return 0;
   }
-  pr_info("mm SLUB geometry source=%s object=%llu slab=%llu order=%llu "
-          "objs=%llu cpu_partial=%llu prepare_slabs=%zu spray_slabs=%zu\n",
-          live_geometry ? "sysfs" : "guard-env",
-          (unsigned long long)object_size,
-          (unsigned long long)slab_size,
-          (unsigned long long)order,
-          (unsigned long long)objs_per_slab,
-          (unsigned long long)cpu_partial, prepare_slab_count,
-          spray_slab_count);
-
-  init_ctx(&prepare_ctx, prepare_slab_count * mm_objs_per_slab);
-  init_ctx(&spray_ctx, spray_slab_count * mm_objs_per_slab);
-  init_ctx(&pre_ctx, mm_objs_per_slab - 1);
-  init_ctx(&post_ctx, mm_objs_per_slab);
-  return 1;
-}
-
 static void put_direct_waiter(
     unsigned char *p, uintptr_t parent, uintptr_t right,
     uintptr_t left, uint64_t waiter_task) {
