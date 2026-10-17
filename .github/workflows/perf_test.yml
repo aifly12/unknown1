@@ -1,0 +1,32 @@
+name: Build perf_test
+
+on:
+  push:
+    paths:
+      - 'tools/perf_test.c'
+      - 'tools/Makefile'
+      - '.github/workflows/perf-test.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r29
+          add-to-path: true
+
+      - name: Build perf_test
+        run: |
+          cd tools
+          make NDK="$ANDROID_NDK_HOME"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf_test
+          path: tools/perf_test
