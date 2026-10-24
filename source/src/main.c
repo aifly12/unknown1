@@ -23,6 +23,7 @@ uint64_t kaslr_slide;
 #define DIRECT_READ_ATTEMPTS 10
 #define DIRECT_EFFECT_ATTEMPTS 10
 
+static int
 void *waiter_thread(void *arg __attribute__((unused))) {
   disable_rseq_for_thread();
 
