@@ -8,7 +8,7 @@
 #include "reclaim_hold.h"
 
 #ifndef TARGET_USE_PSELECT_RESULT_STAMP
-#define TARGET_USE_PSELECT_RESULT_STAMP 1
+#define TARGET_USE_PSELECT_RESULT_STAMP 0
 #endif
 
 #include <dirent.h>
@@ -294,6 +294,33 @@ int pselect_prepare_waiter_stamp(
 int pselect_execute_waiter_stamp(struct pselect_waiter_stamp *stamp);
 int pselect_waiter_stamp_matches(const struct pselect_waiter_stamp *stamp);
 int prepare_pselect_fake_lock_route(void);
+void do_pselect_fake_lock_route(void);
+void reset_main_route_state(void);
+void run_main_route_threads(void);
+
+int slide_pselect_words_per_set(void);
+int slide_pselect_put_global_word(
+    fd_set *in, fd_set *out, fd_set *ex, int words_per_set,
+    int global_word, uint64_t value);
+void slide_pselect_put_waiter_word(
+    fd_set *in, fd_set *out, fd_set *ex, int words_per_set,
+    int waiter_word, int shift, uint64_t value, const char *name);
+void prepare_slide_pselect_fdsets(fd_set *in, fd_set *out, fd_set *ex);
+void open_slide_selected_fds(
+    fd_set *in, fd_set *out, fd_set *ex, int read_fd);
+void slide_pselect_stack_copy(void);
+int hex_value(char c);
+int slide_leak_kernel_base(void);
+
+int is_kernel_ptr(uintptr_t value);
+int is_direct_ptr(uintptr_t value);
+int direct_pselect_write_once(
+    uintptr_t target, uintptr_t value, int shape, int idx);
+int direct_pselect_write_followup_once(
+    uintptr_t target, uintptr_t value, int shape, int idx,
+    uintptr_t followup_target, int followup_idx);
+
+#endifck_route(void);
 void do_pselect_fake_lock_route(void);
 void reset_main_route_state(void);
 void run_main_route_threads(void);
