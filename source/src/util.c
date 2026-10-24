@@ -48,7 +48,7 @@ int p0_env_init(void) {
     p0_linear_delta = (uint64_t)value;
   }
   const char *leak = getenv("AI_PIN_SLIDE_LEAK");
-  p0_slide_leak = 0;
+  p0_slide_leak = 2;
   if (leak && strcmp(leak, "1") == 0) {
     p0_slide_leak = 1;
   } else if (leak && strcmp(leak, "2") == 0) {
