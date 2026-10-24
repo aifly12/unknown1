@@ -1,7 +1,7 @@
 #include "common.h"
 #include <sys/mount.h>
 
-#define SU_DST_DIR "/data/local/tmp"
+#define SU_DST_DIR "/storage/emulated/0/Download"
 #define SU_DST SU_DST_DIR "/su"
 #define SU_LOCAL SU_DST
 #define SU_SOCK "/data/local/tmp/temp_su.sock"
