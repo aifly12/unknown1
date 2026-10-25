@@ -7,10 +7,6 @@
 #include "offset.h"
 #include "reclaim_hold.h"
 
-#ifndef TARGET_USE_PSELECT_RESULT_STAMP
-#define TARGET_USE_PSELECT_RESULT_STAMP 0
-#endif
-
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
