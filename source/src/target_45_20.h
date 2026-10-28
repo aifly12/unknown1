@@ -6,7 +6,7 @@
 #define P0_PHYS_OFFSET 0x80000000ULL
 #define P0_KERNEL_PHYS_LOAD 0x80080000ULL
 
-#define PSELECT_WAITER_WORD_SHIFT 2
+#define PSELECT_WAITER_WORD_SHIFT 16
 
 /*
  * Retail process_vm_rw has different stack geometry from the DEV kernel.
